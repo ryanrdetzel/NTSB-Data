@@ -1,0 +1,25 @@
+# Database artifacts
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Transient downloads
+temp/*.zip
+temp/*.mdb
+temp/*.accdb
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
