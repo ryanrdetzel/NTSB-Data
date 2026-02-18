@@ -23,8 +23,16 @@ TARGET_TABLES = [
 
 # Lookup tables present in the MDB
 LOOKUP_TABLES = [
-    "ct_seqevt",   # sequence-of-events code lookup (code, meaning)
-    "ct_iaids",    # IAIDS cross-reference codes
+    "ct_seqevt",        # sequence-of-events code lookup (code, meaning)
+    "ct_iaids",         # IAIDS cross-reference codes
+    "ct_acft_make",     # aircraft make codes
+    "ct_acft_model",    # aircraft model codes
+    "ct_inj_level",     # injury severity level codes
+    "ct_weather_cond",  # weather condition codes
+    "ct_light_cond",    # light condition codes
+    "ct_sky_cond",      # sky condition codes
+    "ct_far_part",      # FAR part / operation type codes
+    "ct_phase_of_flt",  # phase of flight codes
 ]
 
 # Primary keys per table — used to build idempotent UPSERT logic.
@@ -40,6 +48,14 @@ TABLE_PRIMARY_KEYS = {
 }
 
 LOOKUP_PRIMARY_KEYS = {
-    "ct_seqevt": ["code"],
-    "ct_iaids":  ["ct_name", "code_iaids"],
+    "ct_seqevt":       ["code"],
+    "ct_iaids":        ["ct_name", "code_iaids"],
+    "ct_acft_make":    ["code"],
+    "ct_acft_model":   ["code"],
+    "ct_inj_level":    ["code"],
+    "ct_weather_cond": ["code"],
+    "ct_light_cond":   ["code"],
+    "ct_sky_cond":     ["code"],
+    "ct_far_part":     ["code"],
+    "ct_phase_of_flt": ["code"],
 }

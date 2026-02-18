@@ -2,6 +2,7 @@
 SQLite connection management, schema helpers, and idempotent UPSERT logic.
 """
 
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -198,3 +199,77 @@ def create_views(conn: sqlite3.Connection) -> None:
         LEFT JOIN narratives n ON e.ev_id = n.ev_id
     """)
     conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Statistics & reporting
+# ---------------------------------------------------------------------------
+
+def get_summary_stats(conn: sqlite3.Connection) -> dict:
+    """
+    Return a dictionary of summary statistics about the current database.
+
+    Queries are skipped gracefully if the required tables do not yet exist.
+    """
+    stats: dict = {}
+
+    def _query(sql: str, params=()):
+        try:
+            cur = conn.execute(sql, params)
+            row = cur.fetchone()
+            return row[0] if row else None
+        except sqlite3.OperationalError:
+            return None
+
+    stats["total_events"] = _query("SELECT COUNT(*) FROM events")
+    stats["total_aircraft"] = _query("SELECT COUNT(*) FROM aircraft")
+
+    stats["events_last_30_days"] = _query(
+        "SELECT COUNT(*) FROM events WHERE ev_date >= date('now', '-30 days')"
+    )
+    stats["events_last_365_days"] = _query(
+        "SELECT COUNT(*) FROM events WHERE ev_date >= date('now', '-365 days')"
+    )
+
+    stats["fatal_events_last_365_days"] = _query(
+        "SELECT COUNT(*) FROM events WHERE inj_tot_f > 0 AND ev_date >= date('now', '-365 days')"
+    )
+
+    stats["most_recent_event_date"] = _query(
+        "SELECT MAX(ev_date) FROM events WHERE ev_date IS NOT NULL AND ev_date != ''"
+    )
+
+    stats["sync_files_applied"] = _query("SELECT COUNT(*) FROM _meta_sync")
+    stats["last_sync_file"] = _query(
+        "SELECT filename FROM _meta_sync ORDER BY processed_at DESC LIMIT 1"
+    )
+    stats["last_sync_at"] = _query(
+        "SELECT processed_at FROM _meta_sync ORDER BY processed_at DESC LIMIT 1"
+    )
+
+    return stats
+
+
+# ---------------------------------------------------------------------------
+# Temp file cleanup
+# ---------------------------------------------------------------------------
+
+def cleanup_temp(temp_dir: str) -> int:
+    """
+    Remove all files inside *temp_dir*, leaving the directory itself intact.
+
+    Returns the number of files deleted.
+    """
+    temp_path = Path(temp_dir)
+    if not temp_path.is_dir():
+        return 0
+
+    deleted = 0
+    for item in temp_path.iterdir():
+        if item.is_file():
+            item.unlink()
+            deleted += 1
+        elif item.is_dir():
+            shutil.rmtree(item)
+            deleted += 1
+    return deleted
