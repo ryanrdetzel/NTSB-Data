@@ -10,7 +10,7 @@ Handles:
 import re
 import zipfile
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -35,8 +35,14 @@ def fetch_available_files() -> list[str]:
 
     for tag in soup.find_all("a", href=True):
         href: str = tag["href"]
-        # Normalise to just the filename component
-        filename = Path(href.split("?")[0]).name
+        parsed = urlparse(href)
+        params = parse_qs(parsed.query)
+        if "fileID" in params:
+            # e.g. FileDirectory/DownloadFile?fileID=C%3A%5Cavdata%5Cavall.zip
+            file_id = params["fileID"][0]
+            filename = Path(file_id.replace("\\", "/")).name
+        else:
+            filename = Path(parsed.path).name
         if filename.lower().endswith(".zip"):
             found.append(filename)
 
@@ -58,7 +64,8 @@ def download_file(filename: str, dest_dir: str = TEMP_DIR) -> Path:
     dest = Path(dest_dir)
     dest.mkdir(parents=True, exist_ok=True)
 
-    url = urljoin(BASE_URL + "/", filename)
+    file_id = quote(f"C:\\avdata\\{filename}", safe="")
+    url = f"{BASE_URL}/FileDirectory/DownloadFile?fileID={file_id}"
     dest_path = dest / filename
 
     print(f"  Downloading {filename} ...")

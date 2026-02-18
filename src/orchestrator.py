@@ -44,9 +44,10 @@ def seed(db_path: str = config.DB_PATH, force: bool = False) -> None:
     print("  Extracting MDB ...")
     mdb_path = downloader.extract_mdb(zip_path)
 
-    # 3. Inventory tables available in the MDB
-    available = set(mdb_adapter.list_tables(str(mdb_path)))
-    print(f"  MDB contains {len(available)} table(s)")
+    # 3. Inventory tables available in the MDB (case-insensitive map)
+    mdb_tables = mdb_adapter.list_tables(str(mdb_path))
+    available_ci = {t.lower(): t for t in mdb_tables}  # lowercase -> actual name
+    print(f"  MDB contains {len(mdb_tables)} table(s)")
 
     conn = database.get_connection(db_path)
     database.init_meta_table(conn)
@@ -56,10 +57,11 @@ def seed(db_path: str = config.DB_PATH, force: bool = False) -> None:
     # 4. Load primary tables
     print("\n  Loading primary tables ...")
     for table in config.TARGET_TABLES:
-        if table not in available:
+        actual = available_ci.get(table.lower())
+        if actual is None:
             print(f"    [SKIP] '{table}' not found in MDB")
             continue
-        df = mdb_adapter.export_table(str(mdb_path), table)
+        df = mdb_adapter.export_table(str(mdb_path), actual)
         database.replace_dataframe(conn, df, table)
         print(f"    {table}: {len(df):>10,} rows")
         total_rows += len(df)
@@ -67,10 +69,11 @@ def seed(db_path: str = config.DB_PATH, force: bool = False) -> None:
     # 5. Load lookup tables
     print("\n  Loading lookup tables ...")
     for table in config.LOOKUP_TABLES:
-        if table not in available:
+        actual = available_ci.get(table.lower())
+        if actual is None:
             print(f"    [SKIP] '{table}' not found in MDB")
             continue
-        df = mdb_adapter.export_table(str(mdb_path), table)
+        df = mdb_adapter.export_table(str(mdb_path), actual)
         database.replace_dataframe(conn, df, table)
         print(f"    {table}: {len(df):>10,} rows")
         total_rows += len(df)
@@ -149,12 +152,13 @@ def _apply_update_file(conn, filename: str) -> None:
     zip_path = downloader.download_file(filename)
     mdb_path = downloader.extract_mdb(zip_path)
 
-    available = set(mdb_adapter.list_tables(str(mdb_path)))
+    mdb_tables = mdb_adapter.list_tables(str(mdb_path))
+    available_ci = {t.lower(): t for t in mdb_tables}
     total_rows = 0
 
     # --- events: row-level UPSERT ---
-    if "events" in available:
-        df = mdb_adapter.export_table(str(mdb_path), "events")
+    if "events" in available_ci:
+        df = mdb_adapter.export_table(str(mdb_path), available_ci["events"])
         if not df.empty:
             ev_ids = df["ev_id"].dropna().unique().tolist()
             database.upsert_dataframe(conn, df, "events", config.TABLE_PRIMARY_KEYS["events"])
@@ -168,9 +172,10 @@ def _apply_update_file(conn, filename: str) -> None:
     # --- child tables: replace-for-ev_ids strategy ---
     child_tables = [t for t in config.TARGET_TABLES if t != "events"]
     for table in child_tables:
-        if table not in available:
+        actual = available_ci.get(table.lower())
+        if actual is None:
             continue
-        df = mdb_adapter.export_table(str(mdb_path), table)
+        df = mdb_adapter.export_table(str(mdb_path), actual)
         if df.empty:
             continue
 
@@ -186,9 +191,10 @@ def _apply_update_file(conn, filename: str) -> None:
 
     # --- lookup tables: key-level upsert ---
     for table in config.LOOKUP_TABLES:
-        if table not in available:
+        actual = available_ci.get(table.lower())
+        if actual is None:
             continue
-        df = mdb_adapter.export_table(str(mdb_path), table)
+        df = mdb_adapter.export_table(str(mdb_path), actual)
         if df.empty:
             continue
         pk = config.LOOKUP_PRIMARY_KEYS.get(table, [])

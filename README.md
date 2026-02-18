@@ -14,7 +14,18 @@ brew install mdbtools
 ```
 
 **Python 3.10+:**
+
+Create and activate a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate   # macOS / Linux
+# .venv\Scripts\activate    # Windows
 ```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
