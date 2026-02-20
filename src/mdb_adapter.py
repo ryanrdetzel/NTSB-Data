@@ -7,6 +7,8 @@ import subprocess
 import shutil
 import pandas as pd
 
+from src.config import COLUMN_TYPES
+
 
 def _check_mdbtools():
     """Verify mdbtools is available on PATH."""
@@ -50,4 +52,32 @@ def export_table(mdb_path: str, table_name: str) -> pd.DataFrame:
             ) from exc
 
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+    _coerce_types(df)
     return df
+
+
+def _coerce_types(df: pd.DataFrame) -> None:
+    """Apply explicit type overrides defined in COLUMN_TYPES (in-place).
+
+    Converts:
+      - "Int64"  → pandas nullable integer (SQLite INTEGER, NaN-safe)
+      - "TEXT"   → string (guards against numeric-looking user-id columns)
+
+    Also normalises ev_date from the MDB format "MM/DD/YY HH:MM:SS" to ISO
+    "YYYY-MM-DD" so date ordering and range queries work correctly in SQLite.
+    """
+    # Date normalisation — ev_date arrives as "01/10/08 00:00:00"
+    if "ev_date" in df.columns:
+        df["ev_date"] = (
+            pd.to_datetime(df["ev_date"], format="%m/%d/%y %H:%M:%S", errors="coerce")
+            .dt.strftime("%Y-%m-%d")
+        )
+
+    for col, dtype in COLUMN_TYPES.items():
+        if col not in df.columns:
+            continue
+        if dtype == "Int64":
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+        elif dtype == "TEXT":
+            # Preserve NaN/None as None; everything else becomes a string
+            df[col] = df[col].where(df[col].isna(), df[col].astype(str))
