@@ -55,36 +55,29 @@ def log_processed_file(conn: sqlite3.Connection, filename: str, record_count: in
 
 
 # ---------------------------------------------------------------------------
-# User tags & labels
+# User labels
 # ---------------------------------------------------------------------------
 
 def init_user_tables(conn: sqlite3.Connection) -> None:
-    """Create the user_tags and user_labels tables if they do not exist."""
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS user_tags (
-            ev_id      TEXT NOT NULL,
-            tag        TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (ev_id, tag)
-        )
-    """)
+    """Create the user_labels table if it does not exist.
+
+    Each row is a (category, value) pair on an event.  The composite PK
+    allows multiple values per category (e.g. weather:wind + weather:icing).
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS user_labels (
-            ev_id       TEXT NOT NULL,
-            label_name  TEXT NOT NULL,
-            label_value TEXT NOT NULL,
-            created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (ev_id, label_name)
+            ev_id      TEXT NOT NULL,
+            category   TEXT NOT NULL,
+            value      TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (ev_id, category, value)
         )
     """)
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_user_tags_tag ON user_tags(tag)"
+        "CREATE INDEX IF NOT EXISTS idx_labels_category ON user_labels(category)"
     )
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_user_labels_name ON user_labels(label_name)"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_user_labels_name_value ON user_labels(label_name, label_value)"
+        "CREATE INDEX IF NOT EXISTS idx_labels_cat_val ON user_labels(category, value)"
     )
     conn.commit()
 
@@ -245,12 +238,10 @@ def create_views(conn: sqlite3.Connection) -> None:
             a.acft_model,
             e.inj_tot_t                       AS injury_total,
             n.narr_cause,
-            GROUP_CONCAT(DISTINCT ut.tag)     AS tags,
-            GROUP_CONCAT(DISTINCT ul.label_name || '=' || ul.label_value) AS labels
+            GROUP_CONCAT(DISTINCT ul.category || ':' || ul.value) AS labels
         FROM events e
         LEFT JOIN aircraft    a  ON e.ev_id = a.ev_id
         LEFT JOIN narratives  n  ON e.ev_id = n.ev_id
-        LEFT JOIN user_tags   ut ON e.ev_id = ut.ev_id
         LEFT JOIN user_labels ul ON e.ev_id = ul.ev_id
         GROUP BY e.ev_id, e.ev_date, location,
                  a.regis_no, a.acft_make, a.acft_model,
