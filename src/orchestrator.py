@@ -85,6 +85,9 @@ def seed(db_path: str = config.DB_PATH, force: bool = False) -> None:
     print("  Creating views ...")
     database.create_views(conn)
 
+    print("  Initialising user tag/label tables ...")
+    database.init_user_tables(conn)
+
     # 7. Record that avall.zip has been applied
     database.log_processed_file(conn, "avall.zip", total_rows)
     conn.close()
