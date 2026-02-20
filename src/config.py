@@ -49,6 +49,103 @@ LOOKUP_PRIMARY_KEYS = {
 # counts come out as float64 (because of NaN).  Mapping them to pandas
 # nullable "Int64" produces SQLite INTEGER columns instead of REAL.
 # "TEXT" entries force a string cast (e.g. user-id fields stored as numbers).
+# ---------------------------------------------------------------------------
+# Label taxonomy — predefined categories and their allowed values.
+# An event can have multiple values per category (e.g. weather: wind + icing).
+# Values are validated on insert; use "other" for edge cases.
+# ---------------------------------------------------------------------------
+LABEL_TAXONOMY: dict[str, list[str]] = {
+    # ── Weather & environment ────────────────────────────────────────────────
+    "weather": [
+        "clear", "wind", "gusts", "crosswind", "windshear", "turbulence",
+        "icing", "thunderstorm", "rain", "snow", "fog", "haze",
+        "low_ceiling", "low_visibility", "density_altitude", "mountain_wave",
+    ],
+    "lighting": [
+        "day", "night", "dawn", "dusk",
+    ],
+    "flight_rules": [
+        "vfr", "ifr", "vmc", "imc", "svfr", "nvfr",
+    ],
+
+    # ── Flight & operation ───────────────────────────────────────────────────
+    "phase_of_flight": [
+        "preflight", "taxi", "takeoff", "initial_climb", "climb",
+        "cruise", "descent", "approach", "landing", "go_around",
+        "maneuvering", "hover", "emergency_descent", "other",
+    ],
+    "operation_type": [
+        "part91", "part121", "part135", "part137", "part125",
+        "part129", "public_use", "military", "other",
+    ],
+
+    # ── Aircraft ─────────────────────────────────────────────────────────────
+    "aircraft_category": [
+        "sep", "mep", "set", "met",          # single/multi engine piston/turboprop
+        "jet", "helicopter", "gyroplane",
+        "glider", "balloon", "ultralight", "lsa", "experimental", "other",
+    ],
+    "engine_type": [
+        "reciprocating", "turboprop", "turbojet", "turbofan",
+        "turboshaft", "electric", "none",
+    ],
+    "num_engines": [
+        "single", "twin", "multi",
+    ],
+
+    # ── Failure & cause ──────────────────────────────────────────────────────
+    "cause_category": [
+        "mechanical", "weather", "human_factors", "environmental",
+        "maintenance", "design", "unknown", "other",
+    ],
+    "failure_system": [
+        "engine", "propeller", "landing_gear", "electrical", "hydraulic",
+        "flight_controls", "fuel", "structural", "avionics", "instruments",
+        "vacuum", "pitot_static", "autopilot", "other",
+    ],
+    "human_factors": [
+        "pilot_error", "spatial_disorientation", "fuel_management",
+        "inadequate_preflight", "loss_of_control",
+        "controlled_flight_into_terrain", "vfr_into_imc",
+        "improper_decision", "fatigue", "impairment", "distraction",
+        "crew_coordination", "atc_error", "maintenance_error", "other",
+    ],
+
+    # ── People ───────────────────────────────────────────────────────────────
+    "pilot_certificate": [
+        "student", "sport", "recreational", "private", "commercial", "atp",
+    ],
+    "pilot_experience": [
+        "student", "low_time", "moderate", "experienced", "high_time",
+    ],
+
+    # ── Outcome ──────────────────────────────────────────────────────────────
+    "injury_severity": [
+        "fatal", "serious", "minor", "none",
+    ],
+    "damage_level": [
+        "destroyed", "substantial", "minor", "none",
+    ],
+
+    # ── Location ─────────────────────────────────────────────────────────────
+    "location_type": [
+        "airport", "off_airport", "water", "mountain", "urban", "rural", "remote",
+    ],
+    "altitude": [
+        "ground", "low", "mid", "high",
+    ],
+
+    # ── Review workflow ──────────────────────────────────────────────────────
+    "reviewed": [
+        "yes", "partial", "no",
+    ],
+}
+
+# Explicit column type overrides applied after mdb-export / read_csv.
+# Pandas infers most types from CSV, but numeric-looking integer codes and
+# counts come out as float64 (because of NaN).  Mapping them to pandas
+# nullable "Int64" produces SQLite INTEGER columns instead of REAL.
+# "TEXT" entries force a string cast (e.g. user-id fields stored as numbers).
 COLUMN_TYPES: dict[str, str] = {
     # ── events ──────────────────────────────────────────────────────────────
     "ev_time":        "Int64",   # HHMM military time  (e.g. 1907.0 → 1907)
